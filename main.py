@@ -27,3 +27,15 @@ async def read_chart(request: Request, pair: str = "EUR/USD", symbol: str = None
       
       
       {display_symbol} - Dark Secret Chart
+      
+      
+    
+    
+{display_symbol}
+
+👑 DARK SECRET 👑
+
+SIGNAL: --
+
+"""
+return html_content
