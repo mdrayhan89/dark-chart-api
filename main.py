@@ -1,9 +1,7 @@
 from fastapi import FastAPI, Request
-from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 
 app = FastAPI()
-templates = Jinja2Templates(directory="templates")
 
 SUPPORTED_PAIRS = [
     "EUR/USD", "USD/JPY", "CAD/JPY", "AUD/CAD", 
@@ -13,7 +11,7 @@ SUPPORTED_PAIRS = [
 
 @app.get("/", response_class=HTMLResponse)
 async def read_chart(request: Request, pair: str = "EUR/USD", symbol: str = None):
-    # Determine requested pair (handling ?pair=EUR/USD or ?symbol=EURUSD)
+    # Parameter check (?pair=EUR/USD or ?symbol=EURUSD)
     req_symbol = symbol if symbol else pair
     req_symbol = req_symbol.upper().strip()
 
@@ -22,10 +20,12 @@ async def read_chart(request: Request, pair: str = "EUR/USD", symbol: str = None
         req_symbol = f"{req_symbol[:3]}/{req_symbol[3:]}"
 
     is_supported = req_symbol in SUPPORTED_PAIRS
+    display_symbol = req_symbol if is_supported else "UNSUPPORTED PAIR"
 
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "symbol": req_symbol if is_supported else "UNSUPPORTED PAIR",
-        "is_supported": is_supported,
-        "supported_list": ", ".join(SUPPORTED_PAIRS)
-    })
+    html_content = f"""
+    
+    
+    
+      
+      
+      {display_symbol} - Live Chart
