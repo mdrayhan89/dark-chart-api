@@ -11,16 +11,14 @@ SUPPORTED_PAIRS = [
 
 @app.get("/", response_class=HTMLResponse)
 async def read_chart(request: Request, pair: str = "EUR/USD", symbol: str = None):
-    # Parameter check (?pair=EUR/USD or ?symbol=EURUSD)
     req_symbol = symbol if symbol else pair
     req_symbol = req_symbol.upper().strip()
 
-    # Format slash if missing (e.g. EURUSD -> EUR/USD)
     if "/" not in req_symbol and len(req_symbol) == 6:
         req_symbol = f"{req_symbol[:3]}/{req_symbol[3:]}"
 
     is_supported = req_symbol in SUPPORTED_PAIRS
-    display_symbol = req_symbol if is_supported else "UNSUPPORTED PAIR"
+    display_symbol = req_symbol if is_supported else "EUR/USD"
 
     html_content = f"""
     
@@ -28,4 +26,4 @@ async def read_chart(request: Request, pair: str = "EUR/USD", symbol: str = None
     
       
       
-      {display_symbol} - Live Chart
+      {display_symbol} - Dark Secret Chart
