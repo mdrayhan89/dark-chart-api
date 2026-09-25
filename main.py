@@ -1,7 +1,11 @@
 from fastapi import FastAPI, Request
+from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 
 app = FastAPI()
+
+# Templates directory link
+templates = Jinja2Templates(directory="templates")
 
 SUPPORTED_PAIRS = [
     "EUR/USD", "USD/JPY", "CAD/JPY", "AUD/CAD", 
@@ -20,22 +24,7 @@ async def read_chart(request: Request, pair: str = "EUR/USD", symbol: str = None
     is_supported = req_symbol in SUPPORTED_PAIRS
     display_symbol = req_symbol if is_supported else "EUR/USD"
 
-    html_content = f"""
-    
-    
-    
-      
-      
-      {display_symbol} - Dark Secret Chart
-      
-      
-    
-    
-{display_symbol}
-
-👑 DARK SECRET 👑
-
-SIGNAL: --
-
-"""
-return html_content
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "symbol": display_symbol
+    })
