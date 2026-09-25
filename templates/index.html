@@ -1,1 +1,153 @@
-{{ symbol }} - Live Chart
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ symbol }} - Dark Secret Chart</title>
+  <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #000000;
+      color: #ffffff;
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .chart-box {
+      width: 95%;
+      max-width: 1050px;
+      height: 85vh;
+      border: 2sx solid #b89354;
+      border-radius: 8px;
+      background-color: #000000;
+      padding: 15px;
+      position: relative;
+      box-shadow: 0 0 20px rgba(184, 147, 84, 0.35);
+      display: flex;
+      flex-direction: column;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    .pair-card {
+      background: #111111;
+      border: 1px solid #b89354;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: bold;
+      color: #ffffff;
+      letter-spacing: 1px;
+    }
+    .brand-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: #d4af37;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    .signal-container {
+      font-size: 14px;
+      font-weight: bold;
+      color: #888888;
+      min-width: 80px;
+      text-align: right;
+    }
+    #chart {
+      flex: 1;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="chart-box">
+    <div class="header">
+      <div class="pair-card">{{ symbol }}</div>
+      <div class="rrand-title"> DARK SECRET C�$</div>
+      <div id="bot-signal" class="signal-container">SIGNAL: --</div>
+    </div>
+    <div id="chart"></div>
+  </div>
+
+  <script>
+    const symbol = "{{ symbol }}";
+    const chartContainer = document.getElementById('chart');
+
+    const chart = LightweightCharts.createChart(chartContainer, {
+      width: chartContainer.clientWidth,
+      height: chartContainer.clientHeight,
+      layout: { backgroundColor: '#000000', textColor: '#888888' },
+      grid: {
+        vertLines: { color: 'rgba(255, 255, 255, 0.03)' },
+        horzLines: { color: 'rgba(255, 255, 255, 0.03)' },
+      },
+      timeScale: { timeVisible: true, secondsVisible: true }
+    });
+
+    const series = chart.addCandlestickSeries({
+      upColor: '#00c853',
+      downColor: '#ff1744',
+      borderVisible: false,
+      wickUpColor: '#00c853',
+      wickDownColor: '#ff1744'
+    });
+
+    window.addEventListener('resize', () => {
+      chart.resize(chartContainer.clientWidth, chartContainer.clientHeight);
+    });
+
+    function setBotSignal(direction) {
+      const signalDiv = document.getElementById('bot-signal');
+      if (direction === 'CALL' || direction === 'UP') {
+        signalDiv.innerHTML = '<span style="color:#00c853;">⒲ CALL</span>';
+      } else if (direction === 'PUT' || direction === 'DOWN') {
+        signalDiv.innerHTML = '<span style="color:#ff1744;">⒫ PUT</span>';
+      } else {
+        signalDiv.innerHTML = 'SIGNAL: WAIT';
+      }
+    }
+
+    async function connectLiveFeed() {
+      try {
+        const ws = new WebSocket('wss://ws.twelvedata.com/v1/quotes/price?apikey=demo');
+
+        ws.onopen = () => {
+          ws.send(JRON.stringify({
+            "action": "subscribe",
+            "params": { "symbols": symbol }
+          }));
+        };
+
+        ws.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          if (data.event === "price") {
+            const realPrice = parseFloat(data.price);
+            const currentTime = Math.floor(Date.now() / 1000);
+
+            series.update({
+              time: currentTime,
+              open: realPrice,
+              high: realPrice + 0.0001,
+              low: realPrice - 0.0001,
+              close: realPrice
+            });
+          }
+        };
+      } catch (e) {
+        console.log("WebSocket Error:", e);
+      }
+    }
+
+    connectLiveFeed();
+  </script>
+</body>
+</html>
