@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DARK SECRET Pure Canvas Engine</title>
+  <title>DARK SECRET Real Engine</title>
   <script src="https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -12,14 +12,14 @@
       height: 100vh;
       background-color: #000000;
       color: #e0e0e0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       overflow: hidden;
       display: flex;
       align-items: center;
       justify-content: center;
     }
     
-    /* Gold Border Outer Frame */
+    /* Gold Border Outer Frame matching the screenshot perfectly */
     .chart-frame {
       position: relative;
       width: 98vw;
@@ -28,7 +28,7 @@
       border: 2px solid #b3875a;
       border-radius: 6px;
       box-shadow: 0 0 25px rgba(179, 135, 90, 0.25);
-      padding: 10px;
+      padding: 6px;
     }
 
     /* Inner Accent Frame Line */
@@ -40,7 +40,7 @@
       z-index: 5;
     }
     
-    /* Header Branding */
+    /* Header Logo & Crown matching screenshot */
     .header-logo {
       position: absolute;
       top: 10px;
@@ -50,10 +50,10 @@
       text-align: center;
       pointer-events: none;
     }
-    .crown-icon { color: #d4af37; font-size: 14px; letter-spacing: 3px; }
-    .brand-title { color: #e5c158; font-size: 15px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; text-shadow: 0 0 10px rgba(212,175,55,0.4); }
+    .crown-icon { color: #d4af37; font-size: 13px; letter-spacing: 3px; }
+    .brand-title { color: #e5c158; font-size: 14px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; text-shadow: 0 0 10px rgba(212,175,55,0.4); }
 
-    /* Pair Info Badge */
+    /* Pair Display Badge */
     .pair-badge {
       position: absolute;
       top: 12px;
@@ -61,14 +61,14 @@
       z-index: 10;
       background: rgba(20, 20, 20, 0.9);
       border: 1px solid #333;
-      padding: 6px 12px;
+      padding: 5px 10px;
       border-radius: 4px;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: bold;
       color: #fff;
     }
 
-    /* Signal Box Overlay */
+    /* Signal Overlay Box */
     .signal-box {
       position: absolute;
       top: 12px;
@@ -106,6 +106,14 @@
   </div>
 
 <script>
+  const PAIR_MAP = {
+    'EUR/USD': 'EURUSDT', 'EURUSD': 'EURUSDT',
+    'GBP/USD': 'GBPUSDT', 'GBPUSD': 'GBPUSDT',
+    'AUD/USD': 'AUDUSDT', 'AUDUSD': 'AUDUSDT',
+    'USD/JPY': 'USDJPY',  'USDJPY': 'USDJPY',
+    'BTC/USD': 'BTCUSDT', 'BTCUSD': 'BTCUSDT'
+  };
+
   function getSelectedPair() {
     const urlParams = new URLSearchParams(window.location.search);
     let pairParam = urlParams.get('pair');
@@ -114,15 +122,17 @@
       if (pathParts.length > 0) pairParam = decodeURIComponent(pathParts[pathParts.length - 1]);
     }
     if (pairParam) {
-      return pairParam.toUpperCase().replace('-', '/');
+      let clean = pairParam.toUpperCase().replace('-', '/');
+      if (PAIR_MAP[clean]) return clean;
     }
     return 'EUR/USD';
   }
 
   const currentPair = getSelectedPair();
+  const symbol = PAIR_MAP[currentPair] || 'EURUSDT';
   document.getElementById('pairDisplay').innerText = `5 ${currentPair}`;
 
-  // Explicit UTC+6 Offset (Bangladesh Standard Time)
+  // UTC+6 Time Offset (Bangladesh)
   const UTC6_OFFSET = 6 * 3600;
 
   const container = document.getElementById('chartArea');
@@ -134,8 +144,8 @@
       textColor: '#888888',
     },
     grid: {
-      vertLines: { color: 'rgba(255, 255, 255, 0.05)' },
-      horzLines: { color: 'rgba(255, 255, 255, 0.05)' },
+      vertLines: { color: 'rgba(255, 255, 255, 0.04)' },
+      horzLines: { color: 'rgba(255, 255, 255, 0.04)' },
     },
     crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
     rightPriceScale: { borderColor: '#222222', visible: true },
@@ -169,57 +179,48 @@
     wickDownColor: '#d50000'
   });
 
-  // Price Tick Generator to build candles continuously without CORS network failure
-  let basePrice = 1.0850;
-  let currentTime = Math.floor(Date.now() / 1000) - 3600;
-  let candles = [];
+  // Fetch Real Exchange Market Candles (No Random Data)
+  async function loadRealData() {
+    try {
+      const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1m&limit=80`);
+      const data = await res.json();
+      
+      const candles = data.map(d => ({
+        time: Math.floor(d[0] / 1000),
+        open: parseFloat(d[1]),
+        high: parseFloat(d[2]),
+        low: parseFloat(d[3]),
+        close: parseFloat(d[4])
+      }));
 
-  for (let i = 0; i < 60; i++) {
-    let open = basePrice;
-    let change = (Math.random() - 0.49) * 0.0008;
-    let close = open + change;
-    let high = Math.max(open, close) + Math.random() * 0.0003;
-    let low = Math.min(open, close) - Math.random() * 0.0003;
-    
-    candles.push({
-      time: currentTime,
-      open: parseFloat(open.toFixed(5)),
-      high: parseFloat(high.toFixed(5)),
-      low: parseFloat(low.toFixed(5)),
-      close: parseFloat(close.toFixed(5))
-    });
-
-    basePrice = close;
-    currentTime += 60;
+      candleSeries.setData(candles);
+      chart.timeScale().fitContent();
+    } catch (e) {
+      console.error("Real Data Fetch Error", e);
+    }
   }
 
-  candleSeries.setData(candles);
-  chart.timeScale().fitContent();
+  loadRealData();
 
-  // Live minute candle update engine
-  let currentCandle = { ...candles[candles.length - 1] };
-  
-  setInterval(() => {
-    let now = Math.floor(Date.now() / 1000);
-    let minuteTimestamp = now - (now % 60);
+  // Sync Live Real-Time Ticks when available
+  async function updateRealTick() {
+    try {
+      const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1m&limit=1`);
+      const data = await res.json();
+      if (data && data.length > 0) {
+        const d = data[0];
+        candleSeries.update({
+          time: Math.floor(d[0] / 1000),
+          open: parseFloat(d[1]),
+          high: parseFloat(d[2]),
+          low: parseFloat(d[3]),
+          close: parseFloat(d[4])
+        });
+      }
+    } catch (e) {}
+  }
 
-    if (minuteTimestamp > currentCandle.time) {
-      currentCandle = {
-        time: minuteTimestamp,
-        open: currentCandle.close,
-        high: currentCandle.close,
-        low: currentCandle.close,
-        close: currentCandle.close
-      };
-    } else {
-      let tick = (Math.random() - 0.49) * 0.00015;
-      currentCandle.close = parseFloat((currentCandle.close + tick).toFixed(5));
-      currentCandle.high = Math.max(currentCandle.high, currentCandle.close);
-      currentCandle.low = Math.min(currentCandle.low, currentCandle.close);
-    }
-
-    candleSeries.update(currentCandle);
-  }, 1000);
+  setInterval(updateRealTick, 3000);
 
   window.addEventListener('resize', () => {
     chart.applyOptions({
@@ -228,7 +229,6 @@
     });
   });
 
-  // External Signal Trigger Function
   window.showSignal = function(type) {
     const box = document.getElementById('signalBox');
     if (type === 'PUT') {
