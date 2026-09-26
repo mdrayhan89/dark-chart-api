@@ -104,7 +104,7 @@
   </div>
 
 <script>
-  // 1. Pair Mapping
+  // 1. Supported Pair Mapping (Includes 24/7 OTC/Volatility Index for Weekend Testing)
   const SUPPORTED_PAIRS = {
     'EUR/USD': 'frxEURUSD', 'EURUSD': 'frxEURUSD',
     'USD/JPY': 'frxUSDJPY', 'USDJPY': 'frxUSDJPY',
@@ -117,10 +117,13 @@
     'EUR/GBP': 'frxEURGBP', 'EURGBP': 'frxEURGBP',
     'AUD/CHF': 'frxAUDCHF', 'AUDCHF': 'frxAUDCHF',
     'EUR/CAD': 'frxEURCAD', 'EURCAD': 'frxEURCAD',
-    'GBP/CAD': 'frxGBPCAD', 'GBPCAD': 'frxGBPCAD'
+    'GBP/CAD': 'frxGBPCAD', 'GBPCAD': 'frxGBPCAD',
+    // 24/7 Weekend Pairs:
+    'R_100': 'R_100', 'VOLATILITY100': 'R_100',
+    'R_75': 'R_75', 'VOLATILITY75': 'R_75'
   };
 
-  // 2. Parse URL Parameter
+  // 2. Dynamic Pair Extractor from URL
   function getSelectedPair() {
     const urlParams = new URLSearchParams(window.location.search);
     let pairParam = urlParams.get('pair');
@@ -143,7 +146,7 @@
   const derivSymbol = SUPPORTED_PAIRS[currentPair];
   document.getElementById('pairDisplay').innerText = `5 ${currentPair}`;
 
-  // 3. TradingView Chart Setup
+  // 3. TradingView Lightweight Chart Configuration
   const container = document.getElementById('chartContainer');
   const chart = LightweightCharts.createChart(container, {
     width: container.clientWidth,
@@ -170,7 +173,7 @@
     wickDownColor: '#ef5350'
   });
 
-  // 4. WebSocket Data Feed
+  // 4. Deriv WebSocket Real-time Feed
   let ws;
   let currentCandle = null;
 
@@ -178,6 +181,7 @@
     ws = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089');
 
     ws.onopen = () => {
+      // Get historical 1-minute candles
       ws.send(JSON.stringify({
         ticks_history: derivSymbol,
         adjust_start_time: 1,
@@ -187,6 +191,7 @@
         style: 'candles'
       }));
 
+      // Subscribe to real-time live price ticks
       ws.send(JSON.stringify({ ticks: derivSymbol }));
     };
 
@@ -233,7 +238,7 @@
 
   connectMarketData();
 
-  // Resize Handler
+  // Resize Window Listener
   window.addEventListener('resize', () => {
     chart.applyOptions({
       width: container.clientWidth,
@@ -241,7 +246,7 @@
     });
   });
 
-  // Signal Trigger Function
+  // Global Function for Bot Signals
   window.showSignal = function(type) {
     const box = document.getElementById('signalBox');
     if (type === 'PUT') {
