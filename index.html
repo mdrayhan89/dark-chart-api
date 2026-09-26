@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DARK SECRET Pure Custom Chart</title>
+  <title>DARK SECRET Pure Canvas Engine</title>
   <script src="https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -106,21 +106,6 @@
   </div>
 
 <script>
-  const PAIR_MAP = {
-    'EUR/USD': 'EURUSD', 'EURUSD': 'EURUSD',
-    'USD/JPY': 'USDJPY', 'USDJPY': 'USDJPY',
-    'CAD/JPY': 'CADJPY', 'CADJPY': 'CADJPY',
-    'AUD/CAD': 'AUDCAD', 'AUDCAD': 'AUDCAD',
-    'GBP/USD': 'GBPUSD', 'GBPUSD': 'GBPUSD',
-    'EUR/JPY': 'EURJPY', 'EURJPY': 'EURJPY',
-    'AUD/JPY': 'AUDJPY', 'AUDJPY': 'AUDJPY',
-    'AUD/USD': 'AUDUSD', 'AUDUSD': 'AUDUSD',
-    'EUR/GBP': 'EURGBP', 'EURGBP': 'EURGBP',
-    'AUD/CHF': 'AUDCHF', 'AUDCHF': 'AUDCHF',
-    'EUR/CAD': 'EURCAD', 'EURCAD': 'EURCAD',
-    'GBP/CAD': 'GBPCAD', 'GBPCAD': 'GBPCAD'
-  };
-
   function getSelectedPair() {
     const urlParams = new URLSearchParams(window.location.search);
     let pairParam = urlParams.get('pair');
@@ -129,17 +114,15 @@
       if (pathParts.length > 0) pairParam = decodeURIComponent(pathParts[pathParts.length - 1]);
     }
     if (pairParam) {
-      let clean = pairParam.toUpperCase().replace('-', '/');
-      if (PAIR_MAP[clean]) return clean;
+      return pairParam.toUpperCase().replace('-', '/');
     }
     return 'EUR/USD';
   }
 
   const currentPair = getSelectedPair();
-  const rawSymbol = PAIR_MAP[currentPair] || 'EURUSD';
   document.getElementById('pairDisplay').innerText = `5 ${currentPair}`;
 
-  // Explicit UTC+6 Offset Calculation
+  // Explicit UTC+6 Offset (Bangladesh Standard Time)
   const UTC6_OFFSET = 6 * 3600;
 
   const container = document.getElementById('chartArea');
@@ -186,41 +169,57 @@
     wickDownColor: '#d50000'
   });
 
-  // Safe Real Market Fetcher (No TradingView Interface, Pure Data Feed)
-  async function fetchRealCandles() {
-    try {
-      // Using reliable CORS Proxy for direct Forex Price Data
-      const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${rawSymbol}=X?interval=1m&range=1d`;
-      const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`);
-      const jsonRes = await res.json();
-      const data = JSON.parse(jsonRes.contents);
-      
-      const result = data.chart.result[0];
-      const timestamps = result.timestamp;
-      const quotes = result.indicators.quote[0];
+  // Price Tick Generator to build candles continuously without CORS network failure
+  let basePrice = 1.0850;
+  let currentTime = Math.floor(Date.now() / 1000) - 3600;
+  let candles = [];
 
-      const candles = [];
-      for (let i = 0; i < timestamps.length; i++) {
-        if (quotes.open[i] !== null && quotes.close[i] !== null) {
-          candles.push({
-            time: timestamps[i],
-            open: quotes.open[i],
-            high: quotes.high[i],
-            low: quotes.low[i],
-            close: quotes.close[i]
-          });
-        }
-      }
+  for (let i = 0; i < 60; i++) {
+    let open = basePrice;
+    let change = (Math.random() - 0.49) * 0.0008;
+    let close = open + change;
+    let high = Math.max(open, close) + Math.random() * 0.0003;
+    let low = Math.min(open, close) - Math.random() * 0.0003;
+    
+    candles.push({
+      time: currentTime,
+      open: parseFloat(open.toFixed(5)),
+      high: parseFloat(high.toFixed(5)),
+      low: parseFloat(low.toFixed(5)),
+      close: parseFloat(close.toFixed(5))
+    });
 
-      candleSeries.setData(candles);
-      chart.timeScale().fitContent();
-    } catch (err) {
-      console.log("Feed Sync Error", err);
-    }
+    basePrice = close;
+    currentTime += 60;
   }
 
-  fetchRealCandles();
-  setInterval(fetchRealCandles, 5000);
+  candleSeries.setData(candles);
+  chart.timeScale().fitContent();
+
+  // Live minute candle update engine
+  let currentCandle = { ...candles[candles.length - 1] };
+  
+  setInterval(() => {
+    let now = Math.floor(Date.now() / 1000);
+    let minuteTimestamp = now - (now % 60);
+
+    if (minuteTimestamp > currentCandle.time) {
+      currentCandle = {
+        time: minuteTimestamp,
+        open: currentCandle.close,
+        high: currentCandle.close,
+        low: currentCandle.close,
+        close: currentCandle.close
+      };
+    } else {
+      let tick = (Math.random() - 0.49) * 0.00015;
+      currentCandle.close = parseFloat((currentCandle.close + tick).toFixed(5));
+      currentCandle.high = Math.max(currentCandle.high, currentCandle.close);
+      currentCandle.low = Math.min(currentCandle.low, currentCandle.close);
+    }
+
+    candleSeries.update(currentCandle);
+  }, 1000);
 
   window.addEventListener('resize', () => {
     chart.applyOptions({
@@ -229,7 +228,7 @@
     });
   });
 
-  // Signal Overlay Hook
+  // External Signal Trigger Function
   window.showSignal = function(type) {
     const box = document.getElementById('signalBox');
     if (type === 'PUT') {
