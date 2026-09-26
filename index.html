@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DARK SECRET Custom Chart Engine</title>
-  <script src="https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js"></script>
+  <title>DARK SECRET Real TradingView Engine</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -28,7 +27,8 @@
       border: 2px solid #b3875a;
       border-radius: 6px;
       box-shadow: 0 0 25px rgba(179, 135, 90, 0.25);
-      padding: 12px;
+      padding: 2px;
+      overflow: hidden;
     }
 
     /* Inner Accent Frame Line */
@@ -37,7 +37,7 @@
       top: 4px; left: 4px; right: 4px; bottom: 4px;
       border: 1px solid rgba(179, 135, 90, 0.3);
       pointer-events: none;
-      z-index: 5;
+      z-index: 25;
     }
     
     /* Header Logo & Crown matching 2nd image */
@@ -46,20 +46,20 @@
       top: 10px;
       left: 50%;
       transform: translateX(-50%);
-      z-index: 10;
+      z-index: 30;
       text-align: center;
       pointer-events: none;
     }
     .crown-icon { color: #d4af37; font-size: 14px; letter-spacing: 3px; }
     .brand-title { color: #e5c158; font-size: 15px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; text-shadow: 0 0 10px rgba(212,175,55,0.4); }
 
-    /* Pair Info Badge */
+    /* Pair Badge Overlay */
     .pair-badge {
       position: absolute;
-      top: 12px;
-      left: 15px;
-      z-index: 10;
-      background: rgba(20, 20, 20, 0.9);
+      top: 10px;
+      left: 12px;
+      z-index: 30;
+      background: rgba(15, 15, 15, 0.95);
       border: 1px solid #333;
       padding: 6px 12px;
       border-radius: 4px;
@@ -71,9 +71,9 @@
     /* Signal Indicator Box */
     .signal-box {
       position: absolute;
-      top: 12px;
-      right: 15px;
-      z-index: 10;
+      top: 10px;
+      right: 12px;
+      z-index: 30;
       padding: 6px 16px;
       border-radius: 4px;
       font-size: 13px;
@@ -84,9 +84,12 @@
     .signal-put { background: #e53935; box-shadow: 0 0 10px rgba(229, 57, 53, 0.6); }
     .signal-call { background: #43a047; box-shadow: 0 0 10px rgba(67, 160, 71, 0.6); }
 
-    #chartArea {
+    /* Clean TradingView Embed Box */
+    #tvContainer {
       width: 100%;
       height: 100%;
+      position: relative;
+      z-index: 10;
     }
   </style>
 </head>
@@ -94,7 +97,8 @@
 
   <div class="chart-frame">
     <div class="inner-border"></div>
-    <div class="pair-badge" id="pairDisplay"> EUR/USD</div>
+    <div class="pair-badge" id="pairDisplay">5 EUR/USD</div>
+    
     <div class="header-logo">
       <div class="crown-icon">♔♔♔</div>
       <div class="brand-title">DARK SECRET</div>
@@ -102,167 +106,92 @@
     
     <div class="signal-box" id="signalBox">▼ PUT</div>
 
-    <div id="chartArea"></div>
+    <div id="tvContainer"></div>
   </div>
 
-<script>
-  // Forex Symbol Mapping matrix for TV direct tick feed
-  const PAIR_MAP = {
-    'EUR/USD': 'FX:EURUSD', 'EURUSD': 'FX:EURUSD',
-    'USD/JPY': 'FX:USDJPY', 'USDJPY': 'FX:USDJPY',
-    'CAD/JPY': 'FX:CADJPY', 'CADJPY': 'FX:CADJPY',
-    'AUD/CAD': 'FX:AUDCAD', 'AUDCAD': 'FX:AUDCAD',
-    'GBP/USD': 'FX:GBPUSD', 'GBPUSD': 'FX:GBPUSD',
-    'EUR/JPY': 'FX:EURJPY', 'EURJPY': 'FX:EURJPY',
-    'AUD/JPY': 'FX:AUDJPY', 'AUDJPY': 'FX:AUDJPY',
-    'AUD/USD': 'FX:AUDUSD', 'AUDUSD': 'FX:AUDUSD',
-    'EUR/GBP': 'FX:EURGBP', 'EURGBP': 'FX:EURGBP',
-    'AUD/CHF': 'FX:AUDCHF', 'AUDCHF': 'FX:AUDCHF',
-    'EUR/CAD': 'FX:EURCAD', 'EURCAD': 'FX:EURCAD',
-    'GBP/CAD': 'FX:GBPCAD', 'GBPCAD': 'FX:GBPCAD'
-  };
-
-  function getSelectedPair() {
-    const urlParams = new URLSearchParams(window.location.search);
-    let pairParam = urlParams.get('pair');
-    if (!pairParam) {
-      const pathParts = window.location.pathname.split('/').filter(Boolean);
-      if (pathParts.length > 0) pairParam = decodeURIComponent(pathParts[pathParts.length - 1]);
-    }
-    if (pairParam) {
-      let clean = pairParam.toUpperCase().replace('-', '/');
-      if (PAIR_MAP[clean]) return clean;
-    }
-    return 'EUR/USD';
-  }
-
-  const currentPair = getSelectedPair();
-  const tvSymbol = PAIR_MAP[currentPair] || 'FX:EURUSD';
-  document.getElementById('pairDisplay').innerText = `5 ${currentPair}`;
-
-  const UTC6_OFFSET = 6 * 3600;
-
-  // Custom Lightweight Canvas Engine - Exactly styled like 2nd image
-  const container = document.getElementById('chartArea');
-  const chart = LightweightCharts.createChart(container, {
-    width: container.clientWidth,
-    height: container.clientHeight,
-    layout: {
-      backgroundColor: '#000000',
-      textColor: '#444444',
-    },
-    grid: {
-      vertLines: { color: 'rgba(20, 20, 20, 0.8)' },
-      horzLines: { color: 'rgba(20, 20, 20, 0.8)' },
-    },
-    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-    rightPriceScale: { borderColor: '#1a1a1a', visible: true },
-    timeScale: { 
-      borderColor: '#1a1a1a', 
-      timeVisible: true, 
-      secondsVisible: false,
-      tickMarkFormatter: (time) => {
-        const date = new Date((time + UTC6_OFFSET) * 1000);
-        const hours = String(date.getUTCHours()).padStart(2, '0');
-        const minutes = String(date.getUTCMinutes()).padStart(2, '0');
-        return `${hours}:${minutes}`;
-      }
-    },
-    localization: {
-      timeFormatter: (time) => {
-        const date = new Date((time + UTC6_OFFSET) * 1000);
-        const hours = String(date.getUTCHours()).padStart(2, '0');
-        const minutes = String(date.getUTCMinutes()).padStart(2, '0');
-        return `${hours}:${minutes}`;
-      }
-    }
-  });
-
-  // Solid Green & Red Candle Styling matching 2nd image
-  const candleSeries = chart.addCandlestickSeries({
-    upColor: '#00c853',
-    downColor: '#d50000',
-    borderUpColor: '#00c853',
-    borderDownColor: '#d50000',
-    wickUpColor: '#00c853',
-    wickDownColor: '#d50000'
-  });
-
-  // Pure TradingView Websocket Reader (Direct Data Feed, 0 UI)
-  function connectTVFeed() {
-    const ws = new WebSocket("wss://data.tradingview.com/socket.io/websocket");
-
-    ws.onopen = () => {
-      const auth = JSON.stringify({ m: "set_auth_token", p: ["unauthorized_user_token"] });
-      const session = JSON.stringify({ m: "chart_create_session", p: ["cs_custom", ""] });
-      const symbol = JSON.stringify({
-        m: "resolve_symbol",
-        p: ["cs_custom", "s_1", `={"symbol":"${tvSymbol}","adjustment":"splits"}`]
-      });
-      const series = JSON.stringify({
-        m: "create_series",
-        p: ["cs_custom", "sds_1", "s1", "s_1", "1", 120]
-      });
-
-      ws.send(`~m~${auth.length}~m~${auth}`);
-      ws.send(`~m~${session.length}~m~${session}`);
-      ws.send(`~m~${symbol.length}~m~${symbol}`);
-      ws.send(`~m~${series.length}~m~${series}`);
+  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+  <script type="text/javascript">
+    const PAIR_MAP = {
+      'EUR/USD': 'FX:EURUSD', 'EURUSD': 'FX:EURUSD',
+      'USD/JPY': 'FX:USDJPY', 'USDJPY': 'FX:USDJPY',
+      'CAD/JPY': 'FX:CADJPY', 'CADJPY': 'FX:CADJPY',
+      'AUD/CAD': 'FX:AUDCAD', 'AUDCAD': 'FX:AUDCAD',
+      'GBP/USD': 'FX:GBPUSD', 'GBPUSD': 'FX:GBPUSD',
+      'EUR/JPY': 'FX:EURJPY', 'EURJPY': 'FX:EURJPY',
+      'AUD/JPY': 'FX:AUDJPY', 'AUDJPY': 'FX:AUDJPY',
+      'AUD/USD': 'FX:AUDUSD', 'AUDUSD': 'FX:AUDUSD',
+      'EUR/GBP': 'FX:EURGBP', 'EURGBP': 'FX:EURGBP',
+      'AUD/CHF': 'FX:AUDCHF', 'AUDCHF': 'FX:AUDCHF',
+      'EUR/CAD': 'FX:EURCAD', 'EURCAD': 'FX:EURCAD',
+      'GBP/CAD': 'FX:GBPCAD', 'GBPCAD': 'GBPCAD'
     };
 
-    ws.onmessage = (event) => {
-      const raw = event.data;
-      if (raw.includes("~m~")) {
-        const parts = raw.split(/~m~\d+~m~/).filter(Boolean);
-        parts.forEach(part => {
-          try {
-            const parsed = JSON.parse(part);
-            if (parsed.m === "timescale_update" || parsed.m === "du") {
-              const seriesData = parsed.p[1]?.sds_1?.s;
-              if (seriesData && seriesData.length > 0) {
-                const history = seriesData.map(c => ({
-                  time: c.v[0],
-                  open: c.v[1],
-                  high: c.v[2],
-                  low: c.v[3],
-                  close: c.v[4]
-                }));
-                candleSeries.setData(history);
-                chart.timeScale().fitContent();
-              }
-            }
-          } catch(e) {}
-        });
+    function getSelectedPair() {
+      const urlParams = new URLSearchParams(window.location.search);
+      let pairParam = urlParams.get('pair');
+      if (!pairParam) {
+        const pathParts = window.location.pathname.split('/').filter(Boolean);
+        if (pathParts.length > 0) pairParam = decodeURIComponent(pathParts[pathParts.length - 1]);
       }
-    };
+      if (pairParam) {
+        let clean = pairParam.toUpperCase().replace('-', '/');
+        if (PAIR_MAP[clean]) return clean;
+      }
+      return 'EUR/USD';
+    }
 
-    ws.onclose = () => setTimeout(connectTVFeed, 3000);
-  }
+    const currentPair = getSelectedPair();
+    const tvSymbol = PAIR_MAP[currentPair] || 'FX:EURUSD';
+    document.getElementById('pairDisplay').innerText = `5 ${currentPair}`;
 
-  connectTVFeed();
-
-  window.addEventListener('resize', () => {
-    chart.applyOptions({
-      width: container.clientWidth,
-      height: container.clientHeight
+    // Pure TradingView Embedded Candle Renderer
+    new TradingView.widget({
+      "autosize": true,
+      "symbol": tvSymbol,
+      "interval": "1",
+      "timezone": "Asia/Dhaka",
+      "theme": "dark",
+      "style": "1",
+      "locale": "en",
+      "toolbar_bg": "#000000",
+      "enable_publishing": false,
+      "hide_top_toolbar": true,
+      "hide_legend": true,
+      "save_image": false,
+      "container_id": "tvContainer",
+      "backgroundColor": "#000000",
+      "gridColor": "rgba(20, 20, 20, 0.5)",
+      "overrides": {
+        "paneProperties.background": "#000000",
+        "paneProperties.backgroundType": "solid",
+        "paneProperties.vertGridProperties.color": "#111111",
+        "paneProperties.horzGridProperties.color": "#111111",
+        "mainSeriesProperties.candleStyle.upColor": "#00c853",
+        "mainSeriesProperties.candleStyle.downColor": "#d50000",
+        "mainSeriesProperties.candleStyle.drawWick": true,
+        "mainSeriesProperties.candleStyle.drawBorder": true,
+        "mainSeriesProperties.candleStyle.borderUpColor": "#00c853",
+        "mainSeriesProperties.candleStyle.borderDownColor": "#d50000",
+        "mainSeriesProperties.candleStyle.wickUpColor": "#00c853",
+        "mainSeriesProperties.candleStyle.wickDownColor": "#d50000"
+      }
     });
-  });
 
-  // Signal Bot Hook
-  window.showSignal = function(type) {
-    const box = document.getElementById('signalBox');
-    if (type === 'PUT') {
-      box.className = 'signal-box signal-put';
-      box.innerText = '▼ PUT';
-      box.style.display = 'block';
-    } else if (type === 'CALL') {
-      box.className = 'signal-box signal-call';
-      box.innerText = '▲ CALL';
-      box.style.display = 'block';
-    } else {
-      box.style.display = 'none';
-    }
-  };
-</script>
+    // Signal Overlay Hook for Screenshot Automation
+    window.showSignal = function(type) {
+      const box = document.getElementById('signalBox');
+      if (type === 'PUT') {
+        box.className = 'signal-box signal-put';
+        box.innerText = '▼ PUT';
+        box.style.display = 'block';
+      } else if (type === 'CALL') {
+        box.className = 'signal-box signal-call';
+        box.innerText = '▲ CALL';
+        box.style.display = 'block';
+      } else {
+        box.style.display = 'none';
+      }
+    };
+  </script>
 </body>
 </html>
